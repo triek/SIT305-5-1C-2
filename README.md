@@ -28,5 +28,3 @@ This project includes two Android applications developed for SIT305 Task 5.1, fo
     * Local data storage
     * User authentication
     * Media playback integration
-
-
