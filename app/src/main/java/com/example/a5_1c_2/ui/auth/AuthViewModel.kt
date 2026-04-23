@@ -139,19 +139,30 @@ class AuthViewModel(private val userDao: UserDao) : ViewModel() {
         }
     }
 
-    fun addCurrentVideoToPlaylist() {
+    fun addCurrentVideoToPlaylist(videoName: String) {
         val user = _uiState.value.currentUser
         val videoUrl = _uiState.value.currentVideoUrl
+        val trimmedVideoName = videoName.trim()
 
         if (user == null || videoUrl.isNullOrBlank()) {
             _uiState.update { it.copy(homeError = "Play a valid video before adding it to playlist.") }
+            return
+        }
+        if (trimmedVideoName.isBlank()) {
+            _uiState.update { it.copy(homeError = "Please enter a video name before adding to playlist.") }
             return
         }
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 userDao.updateLastPlayedUrl(user.id, videoUrl)
-                userDao.addPlaylistItem(PlaylistItem(userId = user.id, videoUrl = videoUrl))
+                userDao.addPlaylistItem(
+                    PlaylistItem(
+                        userId = user.id,
+                        videoName = trimmedVideoName,
+                        videoUrl = videoUrl
+                    )
+                )
             }
 
             val updatedUser = withContext(Dispatchers.IO) {

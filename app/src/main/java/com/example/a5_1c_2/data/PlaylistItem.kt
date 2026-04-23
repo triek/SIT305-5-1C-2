@@ -20,6 +20,7 @@ import androidx.room.PrimaryKey
 data class PlaylistItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: Long,
+    val videoName: String,
     val videoUrl: String,
     val addedAtMillis: Long = System.currentTimeMillis()
 )

@@ -163,11 +163,12 @@ fun HomeScreen(
     currentVideoUrl: String?,
     playlistItems: List<PlaylistItem>,
     onPlayClick: (String) -> Unit,
-    onAddToPlaylistClick: () -> Unit,
+    onAddToPlaylistClick: (String) -> Unit,
     onOpenPlaylistClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     var videoUrl by rememberSaveable { mutableStateOf(user?.lastPlayedUrl.orEmpty()) }
+    var videoName by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(currentVideoUrl) {
         if (!currentVideoUrl.isNullOrBlank()) {
@@ -195,6 +196,14 @@ fun HomeScreen(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = videoName,
+            onValueChange = { videoName = it },
+            label = { Text("Video name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
         Button(
             onClick = { onPlayClick(videoUrl) },
             modifier = Modifier.fillMaxWidth()
@@ -214,7 +223,7 @@ fun HomeScreen(
         }
 
         Button(
-            onClick = onAddToPlaylistClick,
+            onClick = { onAddToPlaylistClick(videoName) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Add to Playlist")
@@ -290,11 +299,17 @@ private fun PlaylistList(
                     .padding(vertical = 4.dp)
             ) {
                 Row(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = item.videoUrl,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textDecoration = TextDecoration.Underline
-                    )
+                    Column {
+                        Text(
+                            text = item.videoName,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = item.videoUrl,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
                 }
             }
         }

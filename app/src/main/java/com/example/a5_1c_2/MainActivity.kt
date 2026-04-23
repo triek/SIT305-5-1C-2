@@ -87,7 +87,9 @@ class MainActivity : ComponentActivity() {
                             currentVideoUrl = uiState.currentVideoUrl,
                             playlistItems = uiState.playlistItems,
                             onPlayClick = authViewModel::playVideo,
-                            onAddToPlaylistClick = authViewModel::addCurrentVideoToPlaylist,
+                            onAddToPlaylistClick = { videoName ->
+                                authViewModel.addCurrentVideoToPlaylist(videoName)
+                            },
                             onOpenPlaylistClick = {
                                 authViewModel.loadPlaylistForCurrentUser()
                                 navController.navigate("playlist")
