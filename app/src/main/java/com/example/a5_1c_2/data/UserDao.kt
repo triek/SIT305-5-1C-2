@@ -15,4 +15,16 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE username = :username AND password = :password LIMIT 1")
     suspend fun login(username: String, password: String): User?
+
+    @Query("UPDATE users SET lastPlayedUrl = :videoUrl WHERE id = :userId")
+    suspend fun updateLastPlayedUrl(userId: Long, videoUrl: String)
+
+    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    suspend fun getUserById(userId: Long): User?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun addPlaylistItem(item: PlaylistItem): Long
+
+    @Query("SELECT * FROM playlist_items WHERE userId = :userId ORDER BY addedAtMillis DESC")
+    suspend fun getPlaylistItemsForUser(userId: Long): List<PlaylistItem>
 }

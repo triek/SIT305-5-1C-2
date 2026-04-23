@@ -12,5 +12,6 @@ data class User(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val fullName: String,
     val username: String,
-    val password: String
+    val password: String,
+    val lastPlayedUrl: String? = null
 )

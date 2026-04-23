@@ -79,7 +79,22 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("home") {
-                        HomeScreen(user = uiState.currentUser)
+                        HomeScreen(
+                            user = uiState.currentUser,
+                            homeError = uiState.homeError,
+                            currentVideoId = uiState.currentVideoId,
+                            playlistItems = uiState.playlistItems,
+                            onPlayClick = authViewModel::playVideo,
+                            onAddToPlaylistClick = authViewModel::addCurrentVideoToPlaylist,
+                            onLogoutClick = {
+                                authViewModel.logout()
+                                navController.navigate("login") {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }

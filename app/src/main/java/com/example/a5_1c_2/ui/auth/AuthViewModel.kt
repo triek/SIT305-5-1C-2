@@ -3,21 +3,31 @@ package com.example.a5_1c_2.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.a5_1c_2.data.PlaylistItem
 import com.example.a5_1c_2.data.User
 import com.example.a5_1c_2.data.UserDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private val youtubeRegex = Regex(
+    pattern = """(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([A-Za-z0-9_-]{11}).*""",
+    options = setOf(RegexOption.IGNORE_CASE)
+)
 
 data class AuthUiState(
     val currentUser: User? = null,
     val isLoading: Boolean = false,
     val loginError: String? = null,
-    val signUpError: String? = null
+    val signUpError: String? = null,
+    val homeError: String? = null,
+    val currentVideoId: String? = null,
+    val currentVideoUrl: String? = null,
+    val playlistItems: List<PlaylistItem> = emptyList()
 )
 
 class AuthViewModel(private val userDao: UserDao) : ViewModel() {
@@ -41,8 +51,19 @@ class AuthViewModel(private val userDao: UserDao) : ViewModel() {
                     it.copy(isLoading = false, loginError = "Invalid username or password.")
                 }
             } else {
+                val playlist = withContext(Dispatchers.IO) {
+                    userDao.getPlaylistItemsForUser(user.id)
+                }
                 _uiState.update {
-                    it.copy(isLoading = false, currentUser = user, loginError = null)
+                    it.copy(
+                        isLoading = false,
+                        currentUser = user,
+                        loginError = null,
+                        homeError = null,
+                        currentVideoId = extractVideoId(user.lastPlayedUrl ?: ""),
+                        currentVideoUrl = user.lastPlayedUrl,
+                        playlistItems = playlist
+                    )
                 }
                 onSuccess()
             }
@@ -86,10 +107,72 @@ class AuthViewModel(private val userDao: UserDao) : ViewModel() {
             }
 
             _uiState.update {
-                it.copy(isLoading = false, currentUser = createdUser, signUpError = null)
+                it.copy(
+                    isLoading = false,
+                    currentUser = createdUser,
+                    signUpError = null,
+                    homeError = null,
+                    currentVideoId = null,
+                    currentVideoUrl = null,
+                    playlistItems = emptyList()
+                )
             }
             onSuccess()
         }
+    }
+
+    fun playVideo(url: String) {
+        val trimmed = url.trim()
+        val videoId = extractVideoId(trimmed)
+
+        if (videoId == null) {
+            _uiState.update { it.copy(homeError = "Please enter a valid YouTube URL.") }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                currentVideoId = videoId,
+                currentVideoUrl = normalizedWatchUrl(videoId),
+                homeError = null
+            )
+        }
+    }
+
+    fun addCurrentVideoToPlaylist() {
+        val user = _uiState.value.currentUser
+        val videoUrl = _uiState.value.currentVideoUrl
+
+        if (user == null || videoUrl.isNullOrBlank()) {
+            _uiState.update { it.copy(homeError = "Play a valid video before adding it to playlist.") }
+            return
+        }
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                userDao.updateLastPlayedUrl(user.id, videoUrl)
+                userDao.addPlaylistItem(PlaylistItem(userId = user.id, videoUrl = videoUrl))
+            }
+
+            val updatedUser = withContext(Dispatchers.IO) {
+                userDao.getUserById(user.id)
+            }
+            val updatedPlaylist = withContext(Dispatchers.IO) {
+                userDao.getPlaylistItemsForUser(user.id)
+            }
+
+            _uiState.update {
+                it.copy(
+                    currentUser = updatedUser ?: it.currentUser,
+                    playlistItems = updatedPlaylist,
+                    homeError = null
+                )
+            }
+        }
+    }
+
+    fun logout() {
+        _uiState.value = AuthUiState()
     }
 
     fun clearLoginError() {
@@ -99,6 +182,20 @@ class AuthViewModel(private val userDao: UserDao) : ViewModel() {
     fun clearSignUpError() {
         _uiState.update { it.copy(signUpError = null) }
     }
+
+    private fun extractVideoId(url: String): String? {
+        if (url.isBlank()) return null
+
+        youtubeRegex.find(url)?.let { return it.groupValues[1] }
+
+        return if (url.matches(Regex("^[A-Za-z0-9_-]{11}$"))) {
+            url
+        } else {
+            null
+        }
+    }
+
+    private fun normalizedWatchUrl(videoId: String): String = "https://www.youtube.com/watch?v=$videoId"
 }
 
 class AuthViewModelFactory(private val userDao: UserDao) : ViewModelProvider.Factory {

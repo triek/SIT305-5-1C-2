@@ -1,15 +1,23 @@
 package com.example.a5_1c_2.ui.auth
 
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -22,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.example.a5_1c_2.data.PlaylistItem
 import com.example.a5_1c_2.data.User
 
 @Composable
@@ -144,19 +154,147 @@ fun SignUpScreen(
 }
 
 @Composable
-fun HomeScreen(user: User?) {
+fun HomeScreen(
+    user: User?,
+    homeError: String?,
+    currentVideoId: String?,
+    playlistItems: List<PlaylistItem>,
+    onPlayClick: (String) -> Unit,
+    onAddToPlaylistClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    var videoUrl by rememberSaveable { mutableStateOf(user?.lastPlayedUrl.orEmpty()) }
+    var showPlaylist by rememberSaveable { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Home", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Logged in as ${user?.fullName ?: "Unknown"}")
+        Text(text = "Welcome, ${user?.fullName ?: "User"}", style = MaterialTheme.typography.headlineSmall)
         Text(text = "Username: ${user?.username ?: "Unknown"}")
+
+        Spacer(modifier = Modifier.height(20.dp))
+        OutlinedTextField(
+            value = videoUrl,
+            onValueChange = { videoUrl = it },
+            label = { Text("YouTube URL") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = { onPlayClick(videoUrl) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Play")
+        }
+
+        if (homeError != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = homeError, color = MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        if (currentVideoId != null) {
+            YoutubeVideoPlayer(videoId = currentVideoId)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        Button(
+            onClick = onAddToPlaylistClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Add to Playlist")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = { showPlaylist = !showPlaylist },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (showPlaylist) "Hide My Playlist" else "My Playlist")
+        }
+
+        if (showPlaylist) {
+            Spacer(modifier = Modifier.height(12.dp))
+            PlaylistList(items = playlistItems)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onLogoutClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Logout")
+        }
     }
+}
+
+@Composable
+private fun PlaylistList(items: List<PlaylistItem>) {
+    if (items.isEmpty()) {
+        Text(text = "No videos added yet.")
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+    ) {
+        items(items) { item ->
+            Card(modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+            ) {
+                Row(modifier = Modifier.padding(12.dp)) {
+                    Text(text = item.videoUrl, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun YoutubeVideoPlayer(videoId: String) {
+    val html = """
+        <html>
+            <body style="margin:0;padding:0;">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    src="https://www.youtube.com/embed/$videoId"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            </body>
+        </html>
+    """.trimIndent()
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+        factory = { context ->
+            WebView(context).apply {
+                webViewClient = WebViewClient()
+                webChromeClient = WebChromeClient()
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.loadsImagesAutomatically = true
+                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+            }
+        },
+        update = { webView ->
+            webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+        }
+    )
 }
 
 @Composable
