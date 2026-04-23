@@ -171,6 +171,33 @@ class AuthViewModel(private val userDao: UserDao) : ViewModel() {
         }
     }
 
+    fun loadPlaylistForCurrentUser() {
+        val user = _uiState.value.currentUser ?: return
+        viewModelScope.launch {
+            val playlist = withContext(Dispatchers.IO) {
+                userDao.getPlaylistItemsForUser(user.id)
+            }
+            _uiState.update { it.copy(playlistItems = playlist) }
+        }
+    }
+
+    fun playPlaylistItem(url: String) {
+        playVideo(url)
+
+        val user = _uiState.value.currentUser ?: return
+        val normalizedUrl = _uiState.value.currentVideoUrl ?: return
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                userDao.updateLastPlayedUrl(user.id, normalizedUrl)
+            }
+            val updatedUser = withContext(Dispatchers.IO) {
+                userDao.getUserById(user.id)
+            }
+            _uiState.update { it.copy(currentUser = updatedUser ?: it.currentUser) }
+        }
+    }
+
     fun logout() {
         _uiState.value = AuthUiState()
     }

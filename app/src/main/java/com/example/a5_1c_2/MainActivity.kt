@@ -17,6 +17,7 @@ import com.example.a5_1c_2.ui.auth.AuthViewModel
 import com.example.a5_1c_2.ui.auth.AuthViewModelFactory
 import com.example.a5_1c_2.ui.auth.HomeScreen
 import com.example.a5_1c_2.ui.auth.LoginScreen
+import com.example.a5_1c_2.ui.auth.PlaylistScreen
 import com.example.a5_1c_2.ui.auth.SignUpScreen
 import com.example.a5_1c_2.ui.theme._51C2Theme
 
@@ -83,9 +84,14 @@ class MainActivity : ComponentActivity() {
                             user = uiState.currentUser,
                             homeError = uiState.homeError,
                             currentVideoId = uiState.currentVideoId,
+                            currentVideoUrl = uiState.currentVideoUrl,
                             playlistItems = uiState.playlistItems,
                             onPlayClick = authViewModel::playVideo,
                             onAddToPlaylistClick = authViewModel::addCurrentVideoToPlaylist,
+                            onOpenPlaylistClick = {
+                                authViewModel.loadPlaylistForCurrentUser()
+                                navController.navigate("playlist")
+                            },
                             onLogoutClick = {
                                 authViewModel.logout()
                                 navController.navigate("login") {
@@ -93,6 +99,20 @@ class MainActivity : ComponentActivity() {
                                         inclusive = true
                                     }
                                 }
+                            }
+                        )
+                    }
+
+                    composable("playlist") {
+                        PlaylistScreen(
+                            user = uiState.currentUser,
+                            playlistItems = uiState.playlistItems,
+                            onItemClick = { item ->
+                                authViewModel.playPlaylistItem(item.videoUrl)
+                                navController.popBackStack()
+                            },
+                            onBackClick = {
+                                navController.popBackStack()
                             }
                         )
                     }

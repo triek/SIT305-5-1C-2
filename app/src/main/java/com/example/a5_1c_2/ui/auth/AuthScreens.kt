@@ -22,12 +22,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -158,13 +160,20 @@ fun HomeScreen(
     user: User?,
     homeError: String?,
     currentVideoId: String?,
+    currentVideoUrl: String?,
     playlistItems: List<PlaylistItem>,
     onPlayClick: (String) -> Unit,
     onAddToPlaylistClick: () -> Unit,
+    onOpenPlaylistClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     var videoUrl by rememberSaveable { mutableStateOf(user?.lastPlayedUrl.orEmpty()) }
-    var showPlaylist by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(currentVideoUrl) {
+        if (!currentVideoUrl.isNullOrBlank()) {
+            videoUrl = currentVideoUrl
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -213,15 +222,10 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
         Button(
-            onClick = { showPlaylist = !showPlaylist },
+            onClick = onOpenPlaylistClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (showPlaylist) "Hide My Playlist" else "My Playlist")
-        }
-
-        if (showPlaylist) {
-            Spacer(modifier = Modifier.height(12.dp))
-            PlaylistList(items = playlistItems)
+            Text("My Playlist (${playlistItems.size})")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -235,7 +239,39 @@ fun HomeScreen(
 }
 
 @Composable
-private fun PlaylistList(items: List<PlaylistItem>) {
+fun PlaylistScreen(
+    user: User?,
+    playlistItems: List<PlaylistItem>,
+    onItemClick: (PlaylistItem) -> Unit,
+    onBackClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            text = "${user?.fullName ?: "User"}'s Playlist",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        PlaylistList(items = playlistItems, onItemClick = onItemClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onBackClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Back to Home")
+        }
+    }
+}
+
+@Composable
+private fun PlaylistList(
+    items: List<PlaylistItem>,
+    onItemClick: (PlaylistItem) -> Unit
+) {
     if (items.isEmpty()) {
         Text(text = "No videos added yet.")
         return
@@ -247,12 +283,18 @@ private fun PlaylistList(items: List<PlaylistItem>) {
             .height(220.dp)
     ) {
         items(items) { item ->
-            Card(modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
+            Card(
+                onClick = { onItemClick(item) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
             ) {
                 Row(modifier = Modifier.padding(12.dp)) {
-                    Text(text = item.videoUrl, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = item.videoUrl,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textDecoration = TextDecoration.Underline
+                    )
                 }
             }
         }
